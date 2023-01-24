@@ -504,7 +504,7 @@ def _convert_type_contract(ir: Member) -> Assignment:
     raise SlithIRError(f"type({contract.name}).{ir.variable_right} is unknown")
 
 
-def propagate_types(ir, node: "Node"):  # pylint: disable=too-many-locals
+def propagate_types(ir: Operation, node: "Node"):  # pylint: disable=too-many-locals
     # propagate the type
     node_function = node.function
     using_for = (
@@ -529,6 +529,8 @@ def propagate_types(ir, node: "Node"):  # pylint: disable=too-many-locals
                 return convert_type_library_call(ir, ir.destination)
             elif isinstance(ir, HighLevelCall):
                 t = ir.destination.type
+                print(t)
+                print(*using_for)
                 # Temporary operation (they are removed later)
                 if t is None:
                     return None
@@ -538,10 +540,13 @@ def propagate_types(ir, node: "Node"):  # pylint: disable=too-many-locals
                         return convert_to_solidity_func(ir)
 
                 # convert library or top level function
-                if t in using_for or "*" in using_for:
-                    new_ir = convert_to_library_or_top_level(ir, node, using_for)
-                    if new_ir:
-                        return new_ir
+                using_for_candidates = None
+                if t in using_for:
+                    using_for_candidates = using_for[t]
+                elif "*" in using_for:
+                    using_for_candidates = using_for["*"]
+                if using_for_candidates:
+                    return convert_to_library_or_top_level(ir, node, using_for_candidates)
 
                 if isinstance(t, UserDefinedType):
                     # UserdefinedType
@@ -1358,13 +1363,18 @@ def convert_to_pop(ir, node):
     return ret
 
 
-def look_for_library_or_top_level(contract, ir, using_for, t):
-    for destination in using_for[t]:
+def convert_to_library_or_top_level(
+    ir: Operation, node: "Node", using_for
+) -> Optional[InternalCall | HighLevelCall]:
+    # We use contract_declarer, because Solidity resolve the library
+    # before resolving the inheritance.
+    # Though we could use .contract as libraries cannot be shadowed
+    contract: Contract = node.function.contract_declarer
+    for destination in using_for:
         if isinstance(destination, FunctionTopLevel) and destination.name == ir.function_name:
             arguments = [ir.destination] + ir.arguments
-            if (
-                len(destination.parameters) == len(arguments)
-                and _find_function_from_parameter(arguments, [destination], True) is not None
+            if len(destination.parameters) == len(arguments) and _find_function_from_parameter(
+                arguments, [destination], True
             ):
                 internalcall = InternalCall(destination, ir.nbr_arguments, ir.lvalue, ir.type_call)
                 internalcall.set_expression(ir.expression)
@@ -1400,24 +1410,6 @@ def look_for_library_or_top_level(contract, ir, using_for, t):
             if new_ir:
                 new_ir.set_node(ir.node)
                 return new_ir
-    return None
-
-
-def convert_to_library_or_top_level(ir, node, using_for):
-    # We use contract_declarer, because Solidity resolve the library
-    # before resolving the inheritance.
-    # Though we could use .contract as libraries cannot be shadowed
-    contract = node.function.contract_declarer
-    t = ir.destination.type
-    if t in using_for:
-        new_ir = look_for_library_or_top_level(contract, ir, using_for, t)
-        if new_ir:
-            return new_ir
-
-    if "*" in using_for:
-        new_ir = look_for_library_or_top_level(contract, ir, using_for, "*")
-        if new_ir:
-            return new_ir
 
     return None
 
@@ -1441,7 +1433,7 @@ def _can_be_implicitly_converted(source: str, target: str) -> bool:
     return source == target
 
 
-def convert_type_library_call(ir: HighLevelCall, lib_contract: Contract):
+def convert_type_library_call(ir: HighLevelCall, lib_contract: Contract) -> Optional[HighLevelCall]:
     func = None
     candidates = [
         f
