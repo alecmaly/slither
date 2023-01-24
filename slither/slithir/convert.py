@@ -529,7 +529,7 @@ def propagate_types(ir: Operation, node: "Node"):  # pylint: disable=too-many-lo
                 return convert_type_library_call(ir, ir.destination)
             elif isinstance(ir, HighLevelCall):
                 t = ir.destination.type
-                
+
                 # Temporary operation (they are removed later)
                 if t is None:
                     return None
@@ -1364,7 +1364,7 @@ def convert_to_pop(ir, node):
 
 def convert_to_library_or_top_level(
     ir: Operation, node: "Node", using_for
-) -> Optional[InternalCall | HighLevelCall]:
+) -> Optional[Union[InternalCall, HighLevelCall]]:
     # We use contract_declarer, because Solidity resolve the library
     # before resolving the inheritance.
     # Though we could use .contract as libraries cannot be shadowed
