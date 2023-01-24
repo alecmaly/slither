@@ -529,8 +529,7 @@ def propagate_types(ir: Operation, node: "Node"):  # pylint: disable=too-many-lo
                 return convert_type_library_call(ir, ir.destination)
             elif isinstance(ir, HighLevelCall):
                 t = ir.destination.type
-                print(t)
-                print(*using_for)
+                
                 # Temporary operation (they are removed later)
                 if t is None:
                     return None
