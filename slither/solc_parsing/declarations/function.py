@@ -29,6 +29,15 @@ from slither.visitors.expression.export_values import ExportValues
 from slither.visitors.expression.has_conditional import HasConditional
 
 
+# import sys
+# sys.setrecursionlimit(2500)
+
+# import debugpy
+# debugpy.listen(5678)
+# print("Waiting for debugger attach")
+# debugpy.wait_for_client()
+
+
 if TYPE_CHECKING:
     from slither.core.expressions.expression import Expression
     from slither.solc_parsing.declarations.contract import ContractSolc
@@ -948,7 +957,7 @@ class FunctionSolc(CallerContextExpression):
                 link_underlying_nodes(node, asm_node)
                 node = asm_node
         elif name == "DoWhileStatement":
-            node = self._parse_dowhile(statement, node)
+            node = self._parse_dowhile(statement, node, scope)
         # For Continue / Break / Return / Throw
         # The is fixed later
         elif name == "Continue":
@@ -1152,6 +1161,7 @@ class FunctionSolc(CallerContextExpression):
 
     def _fix_try(self, node: Node):
         end_node = next((son for son in node.sons if son.type != NodeType.CATCH), None)
+        # print(end_node, node.sons)
         if end_node:
             for son in node.sons:
                 if son.type == NodeType.CATCH:
@@ -1162,7 +1172,7 @@ class FunctionSolc(CallerContextExpression):
             link_nodes(node, end_node)
         else:
             for son in node.sons:
-                if son != end_node:
+                if son != end_node and son.type == NodeType.CATCH:
                     self._fix_catch(son, end_node)
 
     def _add_param(self, param: Dict) -> LocalVariableSolc:
