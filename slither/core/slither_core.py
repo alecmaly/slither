@@ -57,6 +57,7 @@ class SlitherCore(Context):
         # Multiple time the same result, so we remove duplicates
         self._currently_seen_resuts: Set[str] = set()
         self._paths_to_filter: Set[str] = set()
+        self._paths_to_keep: Set[str] = set()
 
         self._crytic_compile: Optional[CryticCompile] = None
 
@@ -408,6 +409,24 @@ class SlitherCore(Context):
         source_mapping_elements = list(
             map(lambda x: pathlib.Path(x).resolve().as_posix() if x else x, source_mapping_elements)
         )
+
+        for path in self._paths_to_keep:
+            try:
+                if r['elements'] and any(
+                    bool(re.search(_relative_path_format(path), src_mapping))
+                    for src_mapping in source_mapping_elements
+                ):
+                    return True
+                else:
+                    return False
+            except re.error:
+                logger.error(
+                    f"Incorrect regular expression for --keep-paths {path}."
+                    "\nSlither supports the Python re format"
+                    ": https://docs.python.org/3/library/re.html"
+                )
+
+
         matching = False
 
         for path in self._paths_to_filter:
@@ -473,6 +492,13 @@ class SlitherCore(Context):
         Path are used through direct comparison (no regex)
         """
         self._paths_to_filter.add(path)
+
+    def add_path_to_keep(self, path: str):
+        """
+        Add path to keep
+        Path are used through direct comparison (no regex)
+        """
+        self._paths_to_keep.add(path)
 
     # endregion
     ###################################################################################

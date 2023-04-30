@@ -59,6 +59,7 @@ class Slither(SlitherCore):  # pylint: disable=too-many-instance-attributes
             solc_args (str): solc arguments (default '')
             ast_format (str): ast format (default '--ast-compact-json')
             filter_paths (list(str)): list of path to filter (default [])
+            keep_paths (list(str)): list of path to keep (default [])
             triage_mode (bool): if true, switch to triage mode (default false)
             exclude_dependencies (bool): if true, exclude results that are only related to dependencies
             generate_patches (bool): if true, patches are generated (json output only)
@@ -127,6 +128,10 @@ class Slither(SlitherCore):  # pylint: disable=too-many-instance-attributes
         filter_paths = kwargs.get("filter_paths", [])
         for p in filter_paths:
             self.add_path_to_filter(p)
+
+        keep_paths = kwargs.get("keep_paths", [])
+        for p in keep_paths:
+            self.add_path_to_keep(p)
 
         self._exclude_dependencies = kwargs.get("exclude_dependencies", False)
 

@@ -285,6 +285,12 @@ def parse_filter_paths(args: argparse.Namespace) -> List[str]:
     return []
 
 
+def parse_keep_paths(args: argparse.Namespace) -> List[str]:
+    if args.keep_paths:
+        return args.keep_paths.split(",")
+    return []
+
+
 # pylint: disable=too-many-statements
 def parse_args(
     detector_classes: List[Type[AbstractDetector]], printer_classes: List[Type[AbstractPrinter]]
@@ -521,6 +527,14 @@ def parse_args(
     )
 
     group_misc.add_argument(
+        "--keep-paths",
+        help="Regex filter to include detector results matching file path e.g. (mocks/|test/)",
+        action="store",
+        dest="keep_paths",
+        default=defaults_flag_in_config["keep_paths"],
+    )
+
+    group_misc.add_argument(
         "--triage-mode",
         help="Run triage mode (save results in slither.db.json)",
         action="store_true",
@@ -621,6 +635,7 @@ def parse_args(
     read_config_file(args)
 
     args.filter_paths = parse_filter_paths(args)
+    args.keep_paths = parse_keep_paths(args)
 
     # Verify our json-type output is valid
     args.json_types = set(args.json_types.split(","))
