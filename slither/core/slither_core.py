@@ -382,6 +382,48 @@ class SlitherCore(Context):
 
         return False
 
+    def valid_path(self, src_mapping: str) -> bool:
+        keep_path = False
+        filter_path = False
+
+        if len(self._paths_to_keep) == 0 and len(self._paths_to_filter) == 0:
+            return True
+
+        for path in self._paths_to_keep:
+            try:
+                if bool(re.search(_relative_path_format(path), src_mapping)):
+                    keep_path = True
+            except re.error:
+                logger.error(
+                    f"Incorrect regular expression for --keep-paths {path}."
+                    "\nSlither supports the Python re format"
+                    ": https://docs.python.org/3/library/re.html"
+                )
+
+        for path in self._paths_to_filter:
+            try:
+                if bool(re.search(_relative_path_format(path), src_mapping)):
+                    filter_path = True
+            except re.error:
+                logger.error(
+                    f"Incorrect regular expression for --keep-paths {path}."
+                    "\nSlither supports the Python re format"
+                    ": https://docs.python.org/3/library/re.html"
+                )
+
+        # keep_path = True  &&  filter_path == True  ->    False
+        # keep_path = False  &&  filter_path == True  ->   
+        # keep_path = True  &&  filter_path == False  ->   
+        # keep_path = False  &&  filter_path == False  ->  
+
+        if len(self._paths_to_keep) != 0 and len(self._paths_to_filter) == 0:
+            return keep_path
+        
+        if len(self._paths_to_keep) == 0 and len(self._paths_to_filter) != 0:
+            return not filter_path
+        
+        return keep_path and not filter_path
+
     def valid_result(self, r: Dict) -> bool:
         """
         Check if the result is valid

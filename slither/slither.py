@@ -4,6 +4,7 @@ from typing import Union, List, ValuesView, Type, Dict, Optional
 from crytic_compile import CryticCompile, InvalidCompilation
 
 # pylint: disable= no-name-in-module
+import datetime
 from slither.core.compilation_unit import SlitherCompilationUnit
 from slither.core.scope.scope import FileScope
 from slither.core.slither_core import SlitherCore
@@ -228,7 +229,17 @@ class Slither(SlitherCore):  # pylint: disable=too-many-instance-attributes
         """
 
         self.load_previous_results()
-        results = [d.detect() for d in self._detectors]
+        # results = [d.detect() for d in self._detectors]
+
+        results = []
+        for d in self._detectors:
+            start_time = datetime.datetime.now()
+            print(f"Running detector: {d.ARGUMENT} @ {start_time}")
+            results.append(d.detect())
+            end_time = datetime.datetime.now()
+
+            time_spent = (end_time - start_time).total_seconds() / 60
+            print(f"Time spent running detect(): {time_spent:.2f} minutes")
 
         self.write_results_to_hide()
         return results
