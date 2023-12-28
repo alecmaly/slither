@@ -315,6 +315,9 @@ class FunctionSolc(CallerContextExpression):
 
         self._remove_alone_endif()
 
+        if self._function.entry_point:
+            self._update_reachability(self._function.entry_point)
+
     # endregion
     ###################################################################################
     ###################################################################################
@@ -984,7 +987,9 @@ class FunctionSolc(CallerContextExpression):
                 # technically, entrypoint and exitpoint are YulNodes and we should be returning a NodeSolc here
                 # but they both expose an underlying_node so oh well
                 link_underlying_nodes(node, entrypoint)
-                node = exitpoint
+                end_assembly = self._new_node(NodeType.ENDASSEMBLY, statement["src"], scope)
+                link_underlying_nodes(exitpoint, end_assembly)
+                node = end_assembly
             else:
                 asm_node = self._new_node(NodeType.ASSEMBLY, statement["src"], scope)
                 self._function.contains_assembly = True
@@ -1101,6 +1106,13 @@ class FunctionSolc(CallerContextExpression):
             node = self._parse_statement(statement, node, new_scope)
             
         return node
+
+    def _update_reachability(self, node: Node) -> None:
+        if node.is_reachable:
+            return
+        node.set_is_reachable(True)
+        for son in node.sons:
+            self._update_reachability(son)
 
     def _parse_cfg(self, cfg: Dict) -> None:
 
