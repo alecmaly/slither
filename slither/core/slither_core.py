@@ -62,7 +62,7 @@ class SlitherCore(Context):
         # Multiple time the same result, so we remove duplicates
         self._currently_seen_resuts: Set[str] = set()
         self._paths_to_filter: Set[str] = set()
-        self._paths_to_keep: Set[str] = set()
+        self._paths_to_include: Set[str] = set()
 
         self._crytic_compile: Optional[CryticCompile] = None
 
@@ -270,6 +270,8 @@ class SlitherCore(Context):
                     self._compute_offsets_from_thing(event)
             for enum in compilation_unit.enums_top_level:
                 self._compute_offsets_from_thing(enum)
+            for event in compilation_unit.events_top_level:
+                self._compute_offsets_from_thing(event)
             for function in compilation_unit.functions_top_level:
                 self._compute_offsets_from_thing(function)
             for st in compilation_unit.structures_top_level:
@@ -393,16 +395,17 @@ class SlitherCore(Context):
         keep_path = False
         filter_path = False
 
-        if len(self._paths_to_keep) == 0 and len(self._paths_to_filter) == 0:
+
+        if len(self._paths_to_include) == 0 and len(self._paths_to_filter) == 0:
             return True
 
-        for path in self._paths_to_keep:
+        for path in self._paths_to_include:
             try:
                 if bool(re.search(_relative_path_format(path), src_mapping)):
                     keep_path = True
             except re.error:
                 logger.error(
-                    f"Incorrect regular expression for --keep-paths {path}."
+                    f"Incorrect regular expression for --include-paths {path}."
                     "\nSlither supports the Python re format"
                     ": https://docs.python.org/3/library/re.html"
                 )
@@ -413,7 +416,7 @@ class SlitherCore(Context):
                     filter_path = True
             except re.error:
                 logger.error(
-                    f"Incorrect regular expression for --keep-paths {path}."
+                    f"Incorrect regular expression for --include-paths {path}."
                     "\nSlither supports the Python re format"
                     ": https://docs.python.org/3/library/re.html"
                 )
@@ -423,10 +426,10 @@ class SlitherCore(Context):
         # keep_path = True  &&  filter_path == False  ->   
         # keep_path = False  &&  filter_path == False  ->  
 
-        if len(self._paths_to_keep) != 0 and len(self._paths_to_filter) == 0:
+        if len(self._paths_to_include) != 0 and len(self._paths_to_filter) == 0:
             return keep_path
         
-        if len(self._paths_to_keep) == 0 and len(self._paths_to_filter) != 0:
+        if len(self._paths_to_include) == 0 and len(self._paths_to_filter) != 0:
             return not filter_path
         
         return keep_path and not filter_path
@@ -452,43 +455,29 @@ class SlitherCore(Context):
             if "source_mapping" in elem
         ]
 
-        # Use POSIX-style paths so that filter_paths works across different
+        # Use POSIX-style paths so that filter_paths|include_paths works across different
         # OSes. Convert to a list so elements don't get consumed and are lost
         # while evaluating the first pattern
         source_mapping_elements = list(
             map(lambda x: pathlib.Path(x).resolve().as_posix() if x else x, source_mapping_elements)
         )
+        (matching, paths, msg_err) = (
+            (True, self._paths_to_include, "--include-paths")
+            if self._paths_to_include
+            else (False, self._paths_to_filter, "--filter-paths")
+        )
 
-        for path in self._paths_to_keep:
-            try:
-                if r['elements'] and any(
-                    bool(re.search(_relative_path_format(path), src_mapping))
-                    for src_mapping in source_mapping_elements
-                ):
-                    return True
-                else:
-                    return False
-            except re.error:
-                logger.error(
-                    f"Incorrect regular expression for --keep-paths {path}."
-                    "\nSlither supports the Python re format"
-                    ": https://docs.python.org/3/library/re.html"
-                )
-
-
-        matching = False
-
-        for path in self._paths_to_filter:
+        for path in paths:
             try:
                 if any(
                     bool(re.search(_relative_path_format(path), src_mapping))
                     for src_mapping in source_mapping_elements
                 ):
-                    matching = True
+                    matching = not matching
                     break
             except re.error:
                 logger.error(
-                    f"Incorrect regular expression for --filter-paths {path}."
+                    f"Incorrect regular expression for {msg_err} {path}."
                     "\nSlither supports the Python re format"
                     ": https://docs.python.org/3/library/re.html"
                 )
@@ -559,12 +548,12 @@ class SlitherCore(Context):
         """
         self._paths_to_filter.add(path)
 
-    def add_path_to_keep(self, path: str):
+    def add_path_to_include(self, path: str):
         """
-        Add path to keep
+        Add path to include
         Path are used through direct comparison (no regex)
         """
-        self._paths_to_keep.add(path)
+        self._paths_to_include.add(path)
 
     # endregion
     ###################################################################################
